@@ -51,7 +51,8 @@ module RubyRTF
           group_level -= 1
 
         when *["\r", "\n"] then ;
-        else current_section[:text] << char
+        else
+          current_section[:text] << char
         end
       end
 
@@ -99,11 +100,18 @@ module RubyRTF
 
       contents = src[start, current_pos - start]
       m = contents.match(/([\*a-z]+)(\-?\d+)?\*?/)
-      ctrl = m[1].to_sym
-      val = m[2].to_i unless m[2].nil?
+      if m
+        ctrl = m[1].to_sym
+        val = m[2].to_i unless m[2].nil?
+      else
+        ctrl = val = nil
+      end
 
       # we advance past the optional space if present
       current_pos += 1 if src[current_pos] == ' '
+
+      ## Skip if this is a certain ctrl==u and next ctrl is "'"
+      return [nil, nil, current_pos] if ctrl == :u && src[current_pos] == "\\" && src[current_pos + 1] == "'" && [8220,8221].include?(val)
 
       [ctrl, val, current_pos]
     end
@@ -119,9 +127,16 @@ module RubyRTF
     # @api private
     def handle_control(name, val, src, current_pos)
       case(name)
+      when nil then ;
       when :rtf then ;
       when :deff then @doc.default_font = val
-      when :ansicpg then self.encoding = "windows-#{val}"
+      when :ansicpg then
+        case val
+        when *["1251", "1258", "1252", "1250", "1256", "1253", "1255", "1254", "874", "1257"]
+          self.encoding = "Windows-#{val}"
+        when 10000
+          self.encoding = "macRoman"
+        end
       when *[:ansi, :mac, :pc, :pca] then @doc.character_set = name
       when :fonttbl then current_pos = parse_font_table(src, current_pos)
       when :colortbl then current_pos = parse_colour_table(src, current_pos)
@@ -202,8 +217,8 @@ module RubyRTF
       when :~ then add_modifier_section({:nbsp => true}, " ")
 
       when :tab then add_modifier_section({:tab => true}, "\t")
-      when :emdash then add_modifier_section({:emdash => true}, "--")
-      when :endash then add_modifier_section({:endash => true}, "-")
+      when :emdash then current_section[:text] << '--' # add_modifier_section({:emdash => true}, "--")
+      when :endash then current_section[:text] << '-' # add_modifier_section({:endash => true}, "-")
 
       when *[:line, :"\n"] then add_modifier_section({:newline => true}, "\n")
       when :"\r" then ;
