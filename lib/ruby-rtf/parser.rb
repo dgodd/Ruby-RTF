@@ -111,7 +111,7 @@ module RubyRTF
       current_pos += 1 if src[current_pos] == ' '
 
       ## Skip if this is a certain ctrl==u and next ctrl is "'"
-      return [nil, nil, current_pos] if ctrl == :u && src[current_pos] == "\\" && src[current_pos + 1] == "'" && [8220,8221].include?(val)
+      return [nil, nil, current_pos] if ctrl == :u && src[current_pos] == "\\" && src[current_pos + 1] == "'" && [8220,8221,8230].include?(val)
 
       [ctrl, val, current_pos]
     end
